@@ -37,7 +37,7 @@ func (server *Server) fetch(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-
+	//ok
 	// server := NewServer()
 
 	os.Setenv("REDIS_ADDR", "localhost:6379")
