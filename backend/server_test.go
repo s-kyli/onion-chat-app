@@ -1,11 +1,15 @@
 package main
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/ecdh"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -13,11 +17,49 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func makeJsonByte(from string, to string, payload string) ([]byte, error) {
+func encryptPayload(sharedSecret []byte, plaintext string) ([]byte, error) {
+	block, err := aes.NewCipher(sharedSecret)
+	if err != nil {
+		return nil, err
+	}
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	nonce := make([]byte, aesGCM.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, err
+	}
+	ciphertext := aesGCM.Seal(nonce, nonce, []byte(plaintext), nil)
+	return ciphertext, nil
+}
+
+func decryptPayload(sharedSecret []byte, ciphertext []byte) ([]byte, error) {
+	block, err := aes.NewCipher(sharedSecret)
+	if err != nil {
+		return nil, err
+	}
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	nonceSize := aesGCM.NonceSize()
+	if len(ciphertext) < nonceSize {
+		return nil, fmt.Errorf("ciphertext too short")
+	}
+	nonce, actualCiphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+	plaintextBytes, err := aesGCM.Open(nil, nonce, actualCiphertext, nil)
+	if err != nil {
+		return nil, err
+	}
+	return plaintextBytes, nil
+}
+
+func makeJsonByte(from string, to string, payload []byte) ([]byte, error) {
 	jsonByte, err := json.Marshal(Message{
 		From:    from,
 		To:      to,
-		Payload: []byte(payload),
+		Payload: payload,
 	})
 
 	if err != nil {
@@ -41,28 +83,45 @@ func TestReceiveAndFetch(t *testing.T) {
 	_, err := server.redisClient.Ping(server.ctx).Result()
 	assert.NoError(t, err, "redis client ping should not throw an error")
 
-	jasonEdPub, jasonEdPriv, _ := ed25519.GenerateKey(nil)
+	// ed25519 keys for identity verification
+	jasonEdPub, jasonEdPriv, _ := ed25519.GenerateKey(rand.Reader)
 	jasonEdPubHex := hex.EncodeToString(jasonEdPub)
 
 	server.redisClient.Del(server.ctx, jasonEdPubHex)
 
-	aliceEdPub, _, _ := ed25519.GenerateKey(rand.Reader)
-	aliceEdPubHex := hex.EncodeToString(aliceEdPub)
+	// x25519 keys for e2ee
+	jasonXPriv, _ := ecdh.X25519().GenerateKey(rand.Reader)
+	jasonXPub := jasonXPriv.PublicKey()
+
+	aliceXPriv, _ := ecdh.X25519().GenerateKey(rand.Reader)
+	aliceXPub := aliceXPriv.PublicKey()
+	aliceXPubHex := hex.EncodeToString(aliceXPub.Bytes())
+
+	aliceSharedSecret, _ := aliceXPriv.ECDH(jasonXPub)
+	jasonSharedSecret, _ := jasonXPriv.ECDH(aliceXPub)
 
 	// MAKING JSON EXAMPLE FOR TESTING. in production this will be called on client.
 
-	var jsonBytes [][]byte
-	jsonByte1, _ := makeJsonByte(aliceEdPubHex, jasonEdPubHex, "JASON!!! We should hack the pentagon!")
-	jsonBytes = append(jsonBytes, jsonByte1)
+	rawMessages := []string{
+		"JASON!!! We should hack the pentagon!",
+		"Pleasee?? Think of all the arguments we could win on war thunder!!",
+		"Fine! I'll do it myself then! >:(",
+	}
 
-	jsonByte2, _ := makeJsonByte(aliceEdPubHex, jasonEdPubHex, "Pleasee?? Think of all the arguments we could win on war thunder!!")
-	jsonBytes = append(jsonBytes, jsonByte2)
+	var jsonBytes [][]byte // jsonbytes is what will be "sent" to the server from alice
+	for _, msgText := range rawMessages {
+		ciphertext, err := encryptPayload(aliceSharedSecret, msgText)
+		assert.NoError(t, err, "encryption should not fail")
 
-	jsonByte3, _ := makeJsonByte(aliceEdPubHex, jasonEdPubHex, "Fine! I'll do it myself then! >:(")
-	jsonBytes = append(jsonBytes, jsonByte3)
+		jsonByte, err := makeJsonByte(aliceXPubHex, jasonEdPubHex, ciphertext)
+		assert.NoError(t, err, "makeJsonByte should not throw an error")
+		jsonBytes = append(jsonBytes, jsonByte)
+	}
 
+	// server, upon receiving message from alice
 	// testing receiveAndHold. in production this will be called on server.
 	for _, jsonByte := range jsonBytes {
+		// fmt.Println(string(jsonByte))
 		err = server.recieveAndHold(jasonEdPubHex, jsonByte)
 		assert.NoError(t, err, "receiveAndHold should not throw an error")
 	}
@@ -88,12 +147,11 @@ func TestReceiveAndFetch(t *testing.T) {
 	assert.Len(t, messages, 3, "should be 3 messages returned")
 
 	for i, jsonByte := range jsonBytes {
-		var unmarshlledMsg Message
-		err := json.Unmarshal(jsonByte, &unmarshlledMsg)
+		err := json.Unmarshal(jsonByte, &messages[i])
 		assert.NoError(t, err, "Unmarshal should not throw an error")
-		assert.Equal(t, string(unmarshlledMsg.Payload), string(messages[i].Payload),
-			"Payload bytes must match")
-
+		messages[i].Payload, err = decryptPayload(jasonSharedSecret, messages[i].Payload)
+		assert.NoError(t, err, "decryptPayload should not throw an error")
+		assert.Equal(t, rawMessages[i], string(messages[i].Payload), "raw messages and decrypted messages must match")
 	}
 
 	queueLength := server.redisClient.LLen(server.ctx, jasonEdPubHex).Val()

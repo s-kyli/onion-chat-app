@@ -14,9 +14,9 @@ import (
 )
 
 type Message struct {
-	From    string `json:"From"`    // names for rn, but soon will be ed25519 public key.
-	To      string `json:"To"`      // same for this.
-	Payload []byte `json:"Payload"` // not encrypted for now, but will be e2ee later.
+	From    string `json:"From"`
+	To      string `json:"To"`
+	Payload []byte `json:"Payload"`
 }
 
 type Server struct {
