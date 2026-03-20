@@ -2,14 +2,15 @@ package client
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/ecdh"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
-	// "net/http"
 )
 
 type Message struct {
@@ -32,7 +33,8 @@ type Client struct {
 	publicXKey     *ecdh.PublicKey
 	publicXKeyHex  string
 	privateXKey    *ecdh.PrivateKey   // ermm doesnnt look so secure, changge this later
-	contacts       map[string]Contact // REMINDER THE KEY IS ED25519 PUBLIC KEY HEX!!!!!
+	contacts       map[string]Contact // Key is the alias of contact
+	serverUrl      string
 }
 
 func NewClient(listenAddr string) *Client {
@@ -50,11 +52,12 @@ func NewClient(listenAddr string) *Client {
 		publicXKey:     pubXKey,
 		publicXKeyHex:  hex.EncodeToString(pubXKey.Bytes()),
 		privateXKey:    privXKey,
-		contacts:       make(map[string]Contact), // REMINDER THE KEY IS ED25519 PUBLIC KEY HEX!!!!!
+		contacts:       make(map[string]Contact), // key is alias of contact
+		serverUrl:      "http://localhost:8080/send",
 	}
 }
 
-func (c *Client) addContact(publicXKeyHex string, publicEdKeyHex string, alias string) {
+func (c *Client) addContact(alias string, publicXKeyHex string, publicEdKeyHex string) {
 
 	decodedPublicXKey, err := hex.DecodeString((publicXKeyHex))
 	if err != nil {
@@ -74,12 +77,44 @@ func (c *Client) addContact(publicXKeyHex string, publicEdKeyHex string, alias s
 		return
 	}
 
-	c.contacts[publicEdKeyHex] = Contact{
+	c.contacts[alias] = Contact{
 		publicXKeyHex:  publicXKeyHex,
 		publicEdKeyHex: publicEdKeyHex,
 		alias:          alias,
 		sharedSecret:   sharedSecret,
 	}
+}
+
+func (c *Client) sendMessage(contact Contact, msgText string) {
+
+	ciphertext, err := EncryptPayload(contact.sharedSecret, msgText)
+	if err != nil {
+		fmt.Println("sendMesesage failed, encryption failed:", err)
+		return
+	}
+
+	jsonByte, err := MakeJsonByte(c.publicXKeyHex, contact.publicEdKeyHex, ciphertext)
+	if err != nil {
+		fmt.Println("makeJsonByte error:", err)
+		return
+	}
+
+	// in the future, communication with the server will only be via Tor.
+	response, err := http.Post(c.serverUrl, "application/json", bytes.NewBuffer(jsonByte))
+	if err != nil {
+		fmt.Println("HTTP POST failed:", err)
+		return
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		fmt.Println("Server rejected message send. Status:", response.Status)
+		return
+	}
+
+	fmt.Println("Message send to server successfully")
+
 }
 
 func (c *Client) processInput(text string) {
@@ -90,7 +125,7 @@ func (c *Client) processInput(text string) {
 		if len(parts) == 4 {
 			c.addContact(parts[1], parts[2], parts[3])
 		} else {
-			fmt.Println("usage: /add-contact [public X25519 key (hex string)] [public  ED25519 key (hex string)] [alias (string)]")
+			fmt.Println("usage: /add-contact [alias (string)] [public X25519 key (hex string)] [public  ED25519 key (hex string)]")
 		}
 	} else if strings.HasPrefix(text, "/get-contacts") {
 		for _, contact := range c.contacts {
@@ -106,7 +141,8 @@ func (c *Client) processInput(text string) {
 			//just for now, adding encryption and communication to server.go later
 			contact, exist := c.contacts[parts[1]]
 			if exist {
-				fmt.Println("Chatted '", parts[2], "' to", contact.alias, "aka", contact.publicEdKeyHex)
+				// fmt.Println("Chatted '", parts[2], "' to", contact.alias, "aka", contact.publicEdKeyHex)
+				c.sendMessage(contact, parts[2])
 			} else {
 				fmt.Println(parts[1], "is not a valid contact")
 			}
@@ -128,18 +164,24 @@ func RunClient(args []string) {
 	}
 
 	//create test public key for testing with fake contact
-	privXKey, _ := ecdh.X25519().GenerateKey(rand.Reader)
-	fmt.Println("TEST PUBLIC X25519 KEY:")
-	fmt.Println(hex.EncodeToString(privXKey.PublicKey().Bytes()))
+	// privXKey, _ := ecdh.X25519().GenerateKey(rand.Reader)
+	// fmt.Println("TEST PUBLIC X25519 KEY:")
+	// fmt.Println(hex.EncodeToString(privXKey.PublicKey().Bytes()))
 
-	pubEdKey, _, _ := ed25519.GenerateKey(rand.Reader)
-	fmt.Println("TEST PUBLIC ED25519 KEY")
-	fmt.Println(hex.EncodeToString(pubEdKey))
+	// pubEdKey, _, _ := ed25519.GenerateKey(rand.Reader)
+	// fmt.Println("TEST PUBLIC ED25519 KEY")
+	// fmt.Println(hex.EncodeToString(pubEdKey))
 
 	client := NewClient(":" + args[0])
+	fmt.Println("YOUR PUBLIC X25519 KEY:")
+	fmt.Println(hex.EncodeToString(client.publicXKey.Bytes()))
+
+	fmt.Println("YOUR PUBLIC ED25519 KEY")
+	fmt.Println(client.publicEdKeyHex)
+
 	fmt.Println("\nCOMMANDS:")
-	fmt.Println("/add-contact [public X25519 key] [public ED25519 key] [alias]")
-	fmt.Println("/chat [public ED25519 key] [message]")
+	fmt.Println("/add-contact [alias] [public X25519 key] [public ED25519 key]")
+	fmt.Println("/chat [contact alias] [message]")
 	fmt.Println("/get-contacts")
 
 	scanner := bufio.NewScanner(os.Stdin)

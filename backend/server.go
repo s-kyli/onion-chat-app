@@ -64,6 +64,9 @@ func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("message sent and waiting for ", msg.To)
+	fmt.Println("Message:", string(msg.Payload))
+
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Message queued successfully"))
 
@@ -122,6 +125,7 @@ func RunServer(args []string) {
 		return
 	}
 
+	// in the future, server will ONLY be accessible via Tor.
 	http.HandleFunc("/send", server.handleSend)
 	http.HandleFunc("/fetch", server.handleFetch)
 
