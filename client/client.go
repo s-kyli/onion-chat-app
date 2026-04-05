@@ -286,6 +286,7 @@ func RunClient(args []string) {
 	fmt.Println("/add-contact [public X25519 key] [public ED25519 key] [alias]")
 	fmt.Println("/chat [public ED25519 key] [message]")
 	fmt.Println("/get-contacts")
+	fmt.Println("/fetch -- fetch all new messages in your inbox.")
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
