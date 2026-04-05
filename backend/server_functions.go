@@ -60,7 +60,15 @@ func (server *Server) getInboxSize(pubEdKey string) (int64, error) {
 // w http.ResponseWriter, r *http.Request
 // will use redis RPUSH
 // caches incoming messages for when the receiver wants to get the message.
-func (server *Server) recieveAndHold(recipientPubKey string, jsonString []byte) error {
+func (server *Server) recieveAndHold(recipientPubKey string, jsonString []byte, inboxSize int64) error {
+
+	if inboxSize >= MaxMessagesInbox {
+		err := server.redisClient.LPop(server.ctx, recipientPubKey).Err()
+		if err != nil {
+			return err
+		}
+
+	}
 
 	err := server.redisClient.RPush(server.ctx, recipientPubKey, jsonString).Err()
 	if err != nil {

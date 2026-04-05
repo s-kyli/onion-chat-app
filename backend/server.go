@@ -100,12 +100,7 @@ func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if inboxSize >= MaxMessagesInbox {
-		http.Error(w, "Recipient inbox is full", http.StatusConflict)
-		return
-	}
-
-	err = s.recieveAndHold(msg.To, rawBody)
+	err = s.recieveAndHold(msg.To, rawBody, inboxSize)
 	if err != nil {
 		http.Error(w, "Failed to store message. recieveAndHold failed", http.StatusInternalServerError)
 		return

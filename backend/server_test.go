@@ -68,7 +68,7 @@ func TestReceiveAndFetch(t *testing.T) {
 	// testing receiveAndHold. in production this will be called on server.
 	for _, jsonByte := range jsonBytes {
 		// fmt.Println(string(jsonByte))
-		err = server.recieveAndHold(jasonEdPubHex, jsonByte)
+		err = server.recieveAndHold(jasonEdPubHex, jsonByte, 0)
 		assert.NoError(t, err, "receiveAndHold should not throw an error")
 	}
 
