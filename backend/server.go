@@ -87,11 +87,11 @@ func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Something is wrong with your JSON", http.StatusBadRequest)
 		return
 	}
+	// dynamic proof of work based on inbox size
 	inboxSize, err := s.getInboxSize(msg.To)
 	difficulty := getRequiredDifficulty(inboxSize)
 
 	if !verifyPoW(rawBody, nonce, difficulty) {
-
 		w.Header().Set("X-Required-Difficulty", strconv.Itoa(difficulty))
 		http.Error(w, "Proof of work verification failed or too low", http.StatusPreconditionFailed)
 		return

@@ -22,6 +22,7 @@ func verifyPoW(message []byte, nonce int, difficulty int) bool {
 	return true
 }
 
+// used for dynamic PoW based on inbox size
 func getRequiredDifficulty(inboxSize int64) int {
 	if inboxSize < 10 {
 		return 2
@@ -35,6 +36,7 @@ func getRequiredDifficulty(inboxSize int64) int {
 	return 5
 }
 
+// verify ed25519 signed strings to make sure that the right person is fetching messages
 func verifyIdentity(requesterHex string, timestamp int64, signatureHex string) bool {
 
 	publicKeyDecoded, err := hex.DecodeString(requesterHex)

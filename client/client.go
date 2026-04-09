@@ -276,15 +276,6 @@ func RunClient(args []string) {
 		return
 	}
 
-	//create test public key for testing with fake contact
-	// privXKey, _ := ecdh.X25519().GenerateKey(rand.Reader)
-	// fmt.Println("TEST PUBLIC X25519 KEY:")
-	// fmt.Println(hex.EncodeToString(privXKey.PublicKey().Bytes()))
-
-	// pubEdKey, _, _ := ed25519.GenerateKey(rand.Reader)
-	// fmt.Println("TEST PUBLIC ED25519 KEY")
-	// fmt.Println(hex.EncodeToString(pubEdKey))
-
 	client := NewClient(":" + args[0])
 	fmt.Println("YOUR PUBLIC X25519 KEY:")
 	fmt.Println(hex.EncodeToString(client.publicXKey.Bytes()))

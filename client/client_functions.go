@@ -13,6 +13,7 @@ import (
 	"strconv"
 )
 
+// used before packaging the message into a json
 func EncryptPayload(sharedSecret []byte, plaintext string) ([]byte, error) {
 	block, err := aes.NewCipher(sharedSecret)
 	if err != nil {
@@ -30,6 +31,7 @@ func EncryptPayload(sharedSecret []byte, plaintext string) ([]byte, error) {
 	return ciphertext, nil
 }
 
+// used after recieving messages
 func DecryptPayload(sharedSecret []byte, ciphertext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(sharedSecret)
 	if err != nil {
@@ -51,6 +53,7 @@ func DecryptPayload(sharedSecret []byte, ciphertext []byte) ([]byte, error) {
 	return plaintextBytes, nil
 }
 
+// converts data into one json byte that can be sent over http (tor in the future)
 func MakeJsonByte(from string, fromX, to string, payload []byte) ([]byte, error) {
 	jsonByte, err := json.Marshal(Message{
 		From:    from,
