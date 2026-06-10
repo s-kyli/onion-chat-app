@@ -162,8 +162,9 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 func RunServer(args []string) {
 	//INITIALIZING NEW SERVER
 
-	os.Setenv("REDIS_ADDR", "localhost:6379")
-	os.Setenv("REDIS_PASSWORD", "")
+	// for local testing onoly
+	// os.Setenv("REDIS_ADDR", "localhost:6379")
+	// os.Setenv("REDIS_PASSWORD", "")
 
 	server := NewServer()
 
