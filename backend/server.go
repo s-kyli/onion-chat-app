@@ -162,9 +162,9 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 func RunServer(args []string) {
 	//INITIALIZING NEW SERVER
 	//REDIS_ADDR="127.0.0.1:6379" REDIS_PASSWORD="" go run cmd/server/server_main.go
-	// for local testing onoly
-	os.Setenv("REDIS_ADDR", "127.0.0.1:6379")
-	os.Setenv("REDIS_PASSWORD", "")
+	// os.Setenv("REDIS_ADDR", "127.0.0.1:6379")
+	// os.Setenv("REDIS_PASSWORD", "")
+	fmt.Println("server started!!!")
 
 	server := NewServer()
 

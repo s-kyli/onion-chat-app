@@ -59,8 +59,8 @@ func NewClient(listenAddr string) *Client {
 		publicXKeyHex:  hex.EncodeToString(pubXKey.Bytes()),
 		privateXKey:    privXKey,
 		contacts:       make(map[string]Contact), // key is public ed25519 key of contact
-		sendServerUrl:  "http://localhost:8080/send",
-		fetchServerUrl: "http://localhost:8080/fetch",
+		sendServerUrl:  "http://143.198.73.110:8080/send",
+		fetchServerUrl: "http://143.198.73.110:8080/fetch",
 	}
 }
 
