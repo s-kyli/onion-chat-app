@@ -153,6 +153,9 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// ssh onion-server
+// tmux a ---- ctrl B, D
+// redis-cli, KEYS*
 // to start: redis-server --daemonize yes.
 // to terminate: redis-cli shutdown
 // to ping: redis-cli ping

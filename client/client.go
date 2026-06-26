@@ -32,7 +32,6 @@ type Contact struct {
 }
 
 type Client struct {
-	listenAddr     string
 	publicEdKeyHex string
 	privateEdKey   ed25519.PrivateKey
 	publicXKey     *ecdh.PublicKey
@@ -43,7 +42,7 @@ type Client struct {
 	fetchServerUrl string
 }
 
-func NewClient(listenAddr string) *Client {
+func NewClient() *Client {
 
 	pubEdKey, privEdKey, _ := ed25519.GenerateKey(rand.Reader)
 	pubEdKeyHex := hex.EncodeToString(pubEdKey)
@@ -52,7 +51,6 @@ func NewClient(listenAddr string) *Client {
 	pubXKey := privXKey.PublicKey()
 
 	return &Client{
-		listenAddr:     listenAddr,
 		publicEdKeyHex: pubEdKeyHex,
 		privateEdKey:   privEdKey,
 		publicXKey:     pubXKey,
@@ -272,12 +270,12 @@ func (c *Client) processInput(text string) {
 
 func RunClient(args []string) {
 
-	if len(args) == 0 {
-		fmt.Println("usage: go run client_main.go [port]")
-		return
-	}
+	// if len(args) == 0 {
+	// 	fmt.Println("usage: go run client_main.go [port]")
+	// 	return
+	// }
 
-	client := NewClient(":" + args[0])
+	client := NewClient()
 	fmt.Println("YOUR PUBLIC X25519 KEY:")
 	fmt.Println(hex.EncodeToString(client.publicXKey.Bytes()))
 
